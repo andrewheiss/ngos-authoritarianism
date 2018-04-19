@@ -1,0 +1,13 @@
+# Manuscript output
+*.docx
+*.html
+*.pdf
+*.tex
+tex_out/*
+vc*
+
+# Other folders
+Administration
+
+# Miscellaneous
+.DS_Store
