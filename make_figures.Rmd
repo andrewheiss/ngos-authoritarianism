@@ -37,7 +37,9 @@ testthat::expect_equal(dim(vdem_raw), c(26537, 4641))
 vdem_small <- vdem_raw %>% 
   select(country_name, year, ccode = COWcode, v2x_regime, 
          # Executive and legislative elections, parties, and CSOs 
-         v2xex_elecreg, v2xlg_elecreg, v2psbars_ord, v2csprtcpt_ord) %>% 
+         v2xex_elecreg, v2xlg_elecreg, v2psbars_ord, v2csprtcpt_ord, 
+         # Civil society repression
+         v2csreprss_ord, v2csreprss_mean) %>% 
   group_by(ccode) %>% 
   mutate(election_on_track = v2xex_elecreg == 1 | v2xlg_elecreg == 1) %>% 
   mutate(multiple_parties_allowed = v2psbars_ord >= 2) %>% 
@@ -98,7 +100,7 @@ fig_dictator_institutions %T>%
 ```
 
 
-# Civil society repression and regulations
+# Civil society regulation and repression
 
 Restrictions on NGOs have increased globally since the 1990s, but in different ways: both autocracies are democracies require NGO registration to some extent, while that registration process has become increasingly burdensome in autocracies in particular. 
 
@@ -106,7 +108,7 @@ Here, [I use data](https://darinchristensen.com/replication/JoD_Replication.zip)
 
 I categorize regime type based on V-Dem's "Regimes of the world (RoW)" (`v2x_regime`) measure. I consider all closed autocracies (0) and electoral autocracies (1) to be autocracies. To keep countries consistently categorized over time, I create a variable called "Generally autocracy" (`generally_autocracy`) that is true if the country is marked as an autocracy in at least 50% of the years between 1990 and 2013. Thus, if a country democratizes for only a few years, it is still counted as an autocracy, and vice versa—if a country backslides to an electoral autocracy for a couple years, it is still considered a democracy.
 
-```{r cso-repression-regulations, fig.height=4, fig.width=7, fig.align="center"}
+```{r ngo-registration-regulations, fig.height=4, fig.width=7, fig.align="center"}
 # Create measure of whether a country is generally an autocracy between 1990-2013
 generally_autocracies <- vdem_small %>% 
   filter(year > 1990, year <= 2013) %>% 
@@ -178,4 +180,65 @@ fig_ngo_regulations %T>%
          width = 4.5, height = 2.5, units = "in", device = cairo_pdf) %>% 
   ggsave(., filename = file.path(here(), "output", "fig_ngo_regulations.png"),
          width = 4.5, height = 2.5, units = "in", type = "cairo", dpi = 300)
+```
+
+Laws on the books don't always reflect lived reality—anti-NGO laws are often applied unevenly and targeted at specific civil society organizations. V-Dem provides a useful measure of civil society repression ("CSO repression" or `v2csreprss_*`) to capture the extent to which governments restrict civil society organizations. This is measured on a 0–4 scale, with 4 representing the most democratic and open civil society (i.e. no repression) and 0 representing the most restricted civil society (i.e. complete repression and liquidation of civil society). I take the mean of V-Dem's Bayesian measurement model (`v2csreprss_mean`) for each country and average it by year and general autocraticness, as before. The 95% confidence intervals for the mean are shaded.
+
+```{r cso-repression, fig.height=4, fig.width=7, fig.align="center"}
+avg_cso_repression <- vdem_small %>% 
+  select(country_name, ccode, year, v2csreprss_ord, v2csreprss_mean) %>% 
+  filter(year > 1990, year < 2016) %>% 
+  left_join(generally_autocracies, by = "ccode") %>% 
+  group_by(year, generally_autocracy) %>% 
+  summarize(repression_avg = mean(v2csreprss_mean, na.rm = TRUE),
+            repression_se = sd(v2csreprss_mean, na.rm = TRUE) / sqrt(n()),
+            repression_upper = repression_avg + (qnorm(0.975) * repression_se),
+            repression_lower = repression_avg + (qnorm(0.025) * repression_se)) %>% 
+  ungroup() %>% 
+  mutate(generally_autocracy = factor(generally_autocracy, levels = c(FALSE, TRUE),
+                                      labels = c("Democracies", "Autocracies"), ordered = TRUE)) %>% 
+  mutate(fake_title = "Civil society openness")
+
+repression_labels <- tribble(
+  ~x,   ~y, ~text,
+  1989, 3.8,  "(Less repression)",
+  1989, 0.2,  "(More repression)"
+)
+
+fig_cso_repression <- ggplot(avg_cso_repression, 
+                             aes(x = year, y = repression_avg, 
+                                 color = generally_autocracy, group = generally_autocracy)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = repression_lower, ymax = repression_upper, 
+                  fill = generally_autocracy),
+              alpha = 0.3, colour = NA) +
+  geom_text(data = repression_labels, aes(x = x, y = y, label = text), 
+            inherit.aes = FALSE, hjust = "left", nudge_x = 0.25,
+            size = 2, family = "Asap Condensed") +
+  labs(x = NULL, y = "Mean civil society openness", 
+       caption = "Shaded area shows the 95% confidence interval") +
+  scale_color_manual(values = c("grey70", "grey30"), name = NULL,
+                     guide = guide_legend(reverse = TRUE)) +
+  scale_fill_manual(values = c("grey70", "grey30"), name = NULL,
+                    guide = guide_legend(reverse = TRUE)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  coord_cartesian(ylim = c(0, 4), xlim = c(1990, 2015)) +
+  facet_wrap(~ fake_title) +
+  theme_light(base_size = 9, base_family = "Asap Condensed") +
+  theme(axis.ticks = element_blank(),
+        plot.caption = element_text(size = rel(0.6), color = "grey50"),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        strip.text = element_text(size = rel(0.9), color = "black"),
+        strip.background = element_blank(),
+        legend.position = "bottom",
+        legend.margin = margin(-4, 0, 2, 0),
+        legend.key.size = unit(0.7, "lines"))
+
+fig_cso_repression %T>% 
+  print() %T>%
+  ggsave(., filename = file.path(here(), "output", "fig_cso_repression.pdf"),
+         width = 4, height = 2.5, units = "in", device = cairo_pdf) %>% 
+  ggsave(., filename = file.path(here(), "output", "fig_cso_repression.png"),
+         width = 4, height = 2.5, units = "in", type = "cairo", dpi = 300)
 ```
