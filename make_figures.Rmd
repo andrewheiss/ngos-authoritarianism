@@ -16,6 +16,7 @@ library(tidyverse)
 library(readxl)
 library(countrycode)
 library(scales)
+library(patchwork)
 library(magrittr)
 library(here)
 ```
@@ -241,4 +242,20 @@ fig_cso_repression %T>%
          width = 4, height = 2.5, units = "in", device = cairo_pdf) %>% 
   ggsave(., filename = file.path(here(), "output", "fig_cso_repression.png"),
          width = 4, height = 2.5, units = "in", type = "cairo", dpi = 300)
+```
+
+Combined plot for the chapter:
+
+```{r ngo-registration-repression-both, fig.height=4, fig.width=9, fig.align="center"}
+blank <- plot_spacer() + theme_void()
+
+fig_combined <- fig_cso_repression + blank + fig_ngo_regulations +
+  plot_layout(widths = c(0.33, 0.02, 0.65))
+
+fig_combined %T>% 
+  print() %T>%
+  ggsave(., filename = file.path(here(), "output", "fig_repression_regulation.pdf"),
+         width = 7.5, height = 3, units = "in", device = cairo_pdf) %>% 
+  ggsave(., filename = file.path(here(), "output", "fig_repression_regulation.png"),
+         width = 7.5, height = 3, units = "in", type = "cairo", dpi = 300)
 ```
