@@ -8,7 +8,13 @@ vc*
 
 # Other folders
 Administration
+data
+!output/*.pdf
+
+# R stuff
+.Rproj.user
+*_cache
+*_files
 
 # Miscellaneous
 .DS_Store
-.Rproj.user

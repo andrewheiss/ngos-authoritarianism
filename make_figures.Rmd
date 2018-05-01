@@ -1,0 +1,96 @@
+---
+title: 'Figures for "NGOs and Authoritarianism"'
+author:
+- name: Andrew Heiss
+  affiliation: Brigham Young University
+date: "Last run: `r format(Sys.time(), '%B %e, %Y')`"
+output: 
+  html_document: 
+    highlight: pygments
+    theme: spacelab
+    code_folding: hide
+---
+
+```{r load-libraries, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(scales)
+library(magrittr)
+library(here)
+```
+
+```{r load-vdem, cache=TRUE, warning=FALSE, message=FALSE}
+# V-Dem data
+vdem_raw <- read_csv(file.path(here(), "data", "Country_Year_V-Dem_Extended_CSV_v8",
+                               "V-Dem-CY+Others-v8.csv"))
+
+# Check that the data loaded correctly
+# When loading the V-Dem CSV, read_csv chokes on a bunch of rows for whatever
+# reason and gives a ton of warnings, but it still works. Loading the Stata
+# version of V-Dem doesn't create the warnings, but it's slower and it results
+# in the same data
+testthat::expect_equal(dim(vdem_raw), c(26537, 4641))
+```
+
+```{r clean-data}
+vdem_small <- vdem_raw %>% 
+  select(country_name, year, ccode = COWcode, v2x_regime, 
+         # Executive and legislative elections, parties, and CSOs 
+         v2xex_elecreg, v2xlg_elecreg, v2psbars_ord, v2csprtcpt_ord) %>% 
+  group_by(ccode) %>% 
+  mutate(election_on_track = v2xex_elecreg == 1 | v2xlg_elecreg == 1) %>% 
+  mutate(multiple_parties_allowed = v2psbars_ord >= 2) %>% 
+  mutate(cso_participation = v2csprtcpt_ord >= 2) %>% 
+  # Autocracy = closed autocracies and electoral autocracies with V-Dem's RoW index
+  mutate(autocracy = v2x_regime <= 1)
+```
+
+
+# Democratic-ish institutions in authoritarian regimes
+
+Figure 3 in @Kendall-TaylorFrantz:2014a shows the proportion of autocracies that have at least one party, that have multiple parties and a competitive legislature, and that have held an election in the last six years. The trends in these proportions over time show that autocracies have increasingly adopted democratic-ish institutions as a tool of regime survival. They combine data from [NELDA](https://nelda.co/), the [Autocratic Regime Data](http://sites.psu.edu/dictators/), and [Democracy and Dictatorship Revisited](https://sites.google.com/site/joseantoniocheibub/datasets/democracy-and-dictatorship-revisited) to generate their plot. These datasets are older, though, and better and more robust data sources now exist, like the [Varieties of Democracies (V-Dem) project.](https://www.v-dem.net/en/).
+
+I use data from V-Dem to create a similar plot of autocratic adoption of democratic-ish institutions. I show three measures:
+
+1. **Regularly scheduled elections on course**: In the original figure, Kendall-Taylor and Frantz looked at whether elections had occurred in the last 6 years, which doesn't always capture slower moving democracies or unexpected interruptions. To improve this, I use V-Dem's "Executive electoral regime index" (`v2xex_elecreg`) and "Legislative electoral regime index" (`v2xlg_elecreg`) to measure whether elections are supposed to happen and are on track to happen. This variable is true if either the executive or the legislative elections are on track (1).
+2. **Multiple parties allowed**: I use V-Dem's "Barriers to parties" (`v2psbars_ord`) to create a dichotomous variable indicating whether parties are allowed. The variable is false if parties are explicitly banned (0) or if it is virtually impossible to form them (1). 
+3. **Civil society organizations allowed**: I use V-Dem's "CSO participatory environment" (`v2csprtcpt_ord`) to create a dichotomous variable indicating whether citizens are allowed to associate in civil society organizations and NGOs. The variable is false if most associations are state-sponsored (0) or if voluntary CSOs exist but are rarely used (1). 
+
+Rather than use Polity IV, Unified Democracy Scores, or Geddes, Wright, and Frantz's dictator data to categorize regimes as either democracies or autocracies, I use V-Dem's "Regimes of the world (RoW)" (`v2x_regime`) measure, which categorizes regimes based on a host of V-Dem's more robust democracy measures. I consider all closed autocracies (0) and electoral autocracies (1) to be autocracies.
+
+```{r plot-institutions, warning=FALSE, fig.height=5, fig.width=7, fig.align="center"}
+vdem_dictators_yearly <- vdem_small %>% 
+  filter(autocracy) %>% 
+  group_by(year) %>% 
+  summarize(`Regularly scheduled elections on course` = sum(election_on_track, na.rm = TRUE) / n(),
+            `Multiple parties allowed` = sum(multiple_parties_allowed, na.rm = TRUE) / n(),
+            `Civil society organizations allowed` = sum(cso_participation, na.rm = TRUE) / n()) %>% 
+  ungroup()
+
+plot_dictator_institutions <- vdem_dictators_yearly %>% 
+  gather(institution, pct, -year) %>% 
+  filter(year >= 1970, year < 2016) %>% 
+  mutate(institution = fct_inorder(institution, ordered = TRUE))
+
+fig_dictator_institutions <- ggplot(plot_dictator_institutions, 
+                                    aes(x = year, y = pct, 
+                                        color = institution, size = institution)) +
+  geom_line() +
+  labs(x = NULL, y = "Percentage of autocracies") +
+  scale_y_continuous(labels = percent, expand = c(0, 0)) +
+  scale_color_manual(values = c("grey30", "grey70", "black"), name = NULL) +
+  scale_size_manual(values = c(0.5, 0.5, 1.5), name = NULL) +
+  coord_cartesian(ylim = c(0, 1)) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE)) +
+  theme_light(base_size = 9, base_family = "Asap Condensed") +
+  theme(axis.ticks = element_blank(),
+        legend.position = "bottom",
+        legend.margin = margin(-4, 0, 0, 0),
+        legend.key.size = unit(0.7, "lines"))
+
+fig_dictator_institutions %T>% 
+  print() %T>%
+  ggsave(., filename = file.path(here(), "output", "fig_dictator_institutions.pdf"),
+         width = 4.5, height = 3, units = "in", device = cairo_pdf) %>% 
+  ggsave(., filename = file.path(here(), "output", "fig_dictator_institutions.png"),
+         width = 4.5, height = 3, units = "in", type = "cairo", dpi = 300)
+```
