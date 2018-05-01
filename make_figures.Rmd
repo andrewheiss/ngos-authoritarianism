@@ -13,6 +13,8 @@ output:
 
 ```{r load-libraries, warning=FALSE, message=FALSE}
 library(tidyverse)
+library(readxl)
+library(countrycode)
 library(scales)
 library(magrittr)
 library(here)
@@ -93,4 +95,87 @@ fig_dictator_institutions %T>%
          width = 4.5, height = 3, units = "in", device = cairo_pdf) %>% 
   ggsave(., filename = file.path(here(), "output", "fig_dictator_institutions.png"),
          width = 4.5, height = 3, units = "in", type = "cairo", dpi = 300)
+```
+
+
+# Civil society repression and regulations
+
+Restrictions on NGOs have increased globally since the 1990s, but in different ways: both autocracies are democracies require NGO registration to some extent, while that registration process has become increasingly burdensome in autocracies in particular. 
+
+Here, [I use data](https://darinchristensen.com/replication/JoD_Replication.zip) from @ChristensenWeinstein:2013 to count how many NGO regulations countries have enacted since 1990. They include a host of possible regulations in their original dataset; I only look at whether NGOs are required to register (`q_2a`) and if that registration process is burdensome (`q_2b`). 
+
+I categorize regime type based on V-Dem's "Regimes of the world (RoW)" (`v2x_regime`) measure. I consider all closed autocracies (0) and electoral autocracies (1) to be autocracies. To keep countries consistently categorized over time, I create a variable called "Generally autocracy" (`generally_autocracy`) that is true if the country is marked as an autocracy in at least 50% of the years between 1990 and 2013. Thus, if a country democratizes for only a few years, it is still counted as an autocracy, and vice versa—if a country backslides to an electoral autocracy for a couple years, it is still considered a democracy.
+
+```{r cso-repression-regulations, fig.height=4, fig.width=7, fig.align="center"}
+# Create measure of whether a country is generally an autocracy between 1990-2013
+generally_autocracies <- vdem_small %>% 
+  filter(year > 1990, year <= 2013) %>% 
+  group_by(ccode) %>% 
+  summarize(prop_autocracy = sum(autocracy, na.rm = TRUE) / n(),
+            generally_autocracy = prop_autocracy >= 0.5)
+
+# Read and clean Christensen and Weinstein data
+dcjw_raw <- read_excel(file.path(here(), "data", "DCJW NGO Laws", "DCJW_NGO_Laws.xlsx")) %>% 
+  select(-c(contains("source"), contains("burden"), contains("subset"), Coder, Date)) %>% 
+  gather(key, value, -Country) %>% 
+  separate(key, c("question", "var_name"), 4) %>% 
+  filter(!is.na(Country)) %>%
+  mutate(var_name = ifelse(var_name == "", "value", gsub("_", "", var_name))) %>% 
+  spread(var_name, value)
+
+# Just look at registration laws
+dcjw_registration <- dcjw_raw %>%
+  mutate(question = recode(question, q_2a = "registration", q_2b = "burdensome")) %>%
+  filter(question %in% c("registration", "burdensome"))
+
+# Make a panel of registration laws and fill legislation presence in missing years
+dcjw_registration_panel <- dcjw_registration %>%
+  expand(Country, question, year = min(.$year, na.rm = TRUE):2013) %>%
+  left_join(dcjw_registration, by = c("Country", "question", "year")) %>%
+  # Bring most recent legislation forward
+  group_by(Country) %>%
+  mutate(value = zoo::na.locf(value, na.rm = FALSE)) %>%
+  ungroup() %>%
+  mutate(value = ifelse(is.na(value), 0, value)) %>%
+  mutate(ccode = countrycode(Country, "country.name", "cown",
+                             custom_match = c("Serbia" = 345L))) %>% 
+  left_join(generally_autocracies, by = "ccode")
+
+# Calculate proportion of autocracies and democracies with NGO registration laws by year
+dcjw_registration_yearly <- dcjw_registration_panel %>% 
+  filter(year > 1990, !is.na(generally_autocracy)) %>% 
+  group_by(year, question, generally_autocracy) %>% 
+  summarize(prop_with_regulation = sum(value) / n()) %>% 
+  ungroup() %>% 
+  mutate(generally_autocracy = factor(generally_autocracy, levels = c(FALSE, TRUE),
+                                      labels = c("Democracies", "Autocracies"), ordered = TRUE),
+         question = factor(question, levels = c("registration", "burdensome"),
+                           labels = c("NGO registration required", "NGO registration burdensome"),
+                           ordered = TRUE))
+  
+fig_ngo_regulations <- ggplot(dcjw_registration_yearly,
+                              aes(x = year, y = prop_with_regulation, 
+                                  color = generally_autocracy)) + 
+  geom_line(aes(group = generally_autocracy), size = 1) + 
+  labs(x = NULL, y = "Proportion of countries\nwith regulations") +
+  scale_y_continuous(labels = percent, expand = c(0, 0)) +
+  coord_cartesian(ylim = c(0, 1), xlim = c(1990, 2015)) +
+  scale_color_manual(values = c("grey70", "grey30"), name = NULL,
+                     guide = guide_legend(reverse = TRUE)) +
+  facet_wrap(~ question) +
+  theme_light(base_size = 9, base_family = "Asap Condensed") +
+  theme(axis.ticks = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        strip.text = element_text(size = rel(0.9), color = "black"),
+        strip.background = element_blank(),
+        legend.position = "bottom",
+        legend.margin = margin(-4, 0, 0, 0),
+        legend.key.size = unit(0.7, "lines"))
+
+fig_ngo_regulations %T>% 
+  print() %T>%
+  ggsave(., filename = file.path(here(), "output", "fig_ngo_regulations.pdf"),
+         width = 4.5, height = 2.5, units = "in", device = cairo_pdf) %>% 
+  ggsave(., filename = file.path(here(), "output", "fig_ngo_regulations.png"),
+         width = 4.5, height = 2.5, units = "in", type = "cairo", dpi = 300)
 ```
