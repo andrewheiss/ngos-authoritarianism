@@ -201,9 +201,9 @@ avg_cso_repression <- vdem_small %>%
   mutate(fake_title = "Civil society openness")
 
 repression_labels <- tribble(
-  ~x,   ~y, ~text,
-  1989, 3.8,  "(Less repression)",
-  1989, 0.2,  "(More repression)"
+  ~x,   ~y,  ~text,
+  1989, 3.8, "(Less repression)",
+  1989, 0.2, "(More repression)"
 )
 
 fig_cso_repression <- ggplot(avg_cso_repression, 
