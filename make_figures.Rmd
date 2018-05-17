@@ -16,6 +16,7 @@ library(tidyverse)
 library(readxl)
 library(countrycode)
 library(scales)
+library(ggbeeswarm)
 library(patchwork)
 library(magrittr)
 library(validate)
@@ -28,9 +29,9 @@ library(here)
 When loading the [V-Dem](https://www.v-dem.net/en/) CSV, `readr::read_csv()` chokes on a bunch of rows for whatever reason and gives a ton of warnings, but it still works. Loading the Stata version of V-Dem doesn't create the warnings, but it's slower and it results in the same data. So I just load from CSV and make sure it has the right number of rows and columns in the end. 
 
 ```{r load-vdem, cache=TRUE, warning=FALSE, message=FALSE}
+# V-Dem data
 # Run this to load the cache in an interactive session
 # lazyLoad(file.path(here(), "make_figures_cache", "html", "load-vdem_891e6bac420054832bed978ca9e5f927"))
-# V-Dem data
 vdem_raw <- read_csv(file.path(here(), "data", "Country_Year_V-Dem_Extended_CSV_v8",
                                "V-Dem-CY+Others-v8.csv"))
 ```
@@ -50,7 +51,7 @@ vdem_small <- vdem_raw %>%
          # Executive and legislative elections, parties, and CSOs 
          v2xex_elecreg, v2xlg_elecreg, v2psbars_ord, v2csprtcpt_ord, 
          # Civil society repression
-         v2csreprss_ord, v2csreprss_mean) %>% 
+         v2csreprss_ord, v2csreprss, v2csreprss_mean, v2csreprss_osp) %>% 
   group_by(ccode) %>% 
   mutate(election_on_track = v2xex_elecreg == 1 | v2xlg_elecreg == 1) %>% 
   mutate(multiple_parties_allowed = v2psbars_ord >= 2) %>% 
@@ -197,54 +198,36 @@ Laws on the books don't always reflect lived reality—anti-NGO laws are often a
 
 ```{r cso-repression, fig.height=4, fig.width=7, fig.align="center"}
 avg_cso_repression <- vdem_small %>% 
-  select(country_name, ccode, year, v2csreprss_ord, v2csreprss_mean) %>% 
   filter(year > 1990, year < 2016) %>% 
   left_join(generally_autocracies, by = "ccode") %>% 
-  group_by(year, generally_autocracy) %>% 
-  summarize(repression_avg = mean(v2csreprss_mean, na.rm = TRUE),
-            repression_se = sd(v2csreprss_mean, na.rm = TRUE) / sqrt(n()),
-            repression_upper = repression_avg + (qnorm(0.975) * repression_se),
-            repression_lower = repression_avg + (qnorm(0.025) * repression_se)) %>% 
+  group_by(generally_autocracy, ccode) %>% 
+  summarize(repression_avg = mean(v2csreprss_ord, na.rm = TRUE)) %>% 
   ungroup() %>% 
   mutate(generally_autocracy = factor(generally_autocracy, levels = c(FALSE, TRUE),
-                                      labels = c("Democracies", "Autocracies"), ordered = TRUE)) %>% 
-  mutate(fake_title = "Civil society openness")
+                                      labels = c("Democracies", "Autocracies"), ordered = TRUE))
 
 repression_labels <- tribble(
   ~x,   ~y,  ~text,
-  1989, 3.8, "(Less repression)",
-  1989, 0.2, "(More repression)"
+  1.5, 3.8, "(Less repression)",
+  1.5, 0.2, "(More repression)"
 )
 
+set.seed(12345)
 fig_cso_repression <- ggplot(avg_cso_repression, 
-                             aes(x = year, y = repression_avg, 
-                                 color = generally_autocracy, group = generally_autocracy)) +
-  geom_line(size = 1) +
-  geom_ribbon(aes(ymin = repression_lower, ymax = repression_upper, 
-                  fill = generally_autocracy),
-              alpha = 0.3, colour = NA) +
-  geom_text(data = repression_labels, aes(x = x, y = y, label = text), 
-            inherit.aes = FALSE, hjust = "left", nudge_x = 0.25,
-            size = 2, family = "Asap Condensed") +
-  labs(x = NULL, y = "Mean civil society openness", 
-       caption = "Shaded area shows the 95% confidence interval") +
+                             aes(x = fct_rev(generally_autocracy), y = repression_avg, 
+                                 color = generally_autocracy)) +
+  geom_quasirandom(size = 0.5, varwidth = TRUE) +
+  geom_text(data = repression_labels, aes(x = x, y = y, label = text),
+            inherit.aes = FALSE, hjust = "center", nudge_x = 0,
+            size = 2, color = "grey50", family = "Asap Condensed") +
+  labs(x = NULL, y = "Mean civil society openness") +
   scale_color_manual(values = c("grey70", "grey30"), name = NULL,
-                     guide = guide_legend(reverse = TRUE)) +
-  scale_fill_manual(values = c("grey70", "grey30"), name = NULL,
-                    guide = guide_legend(reverse = TRUE)) +
-  scale_y_continuous(expand = c(0, 0)) +
-  coord_cartesian(ylim = c(0, 4), xlim = c(1990, 2015)) +
-  facet_wrap(~ fake_title) +
+                     guide = FALSE) +
   theme_light(base_size = 9, base_family = "Asap Condensed") +
   theme(axis.ticks = element_blank(),
-        plot.caption = element_text(size = rel(0.6), color = "grey50"),
+        panel.grid.major.x = element_blank(),
         panel.grid.minor.x = element_blank(),
-        panel.grid.minor.y = element_blank(),
-        strip.text = element_text(size = rel(0.9), color = "black"),
-        strip.background = element_blank(),
-        legend.position = "bottom",
-        legend.margin = margin(-4, 0, 2, 0),
-        legend.key.size = unit(0.7, "lines"))
+        panel.grid.minor.y = element_blank())
 
 fig_cso_repression %T>% 
   print() %T>%
