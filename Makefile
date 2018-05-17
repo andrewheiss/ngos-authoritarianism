@@ -30,7 +30,7 @@
 MEXT = md
 
 # Optional folder for manuscript
-MS_DIR = .
+MS_DIR = manuscript
 
 # Location of Pandoc support files.
 PREFIX = /Users/andrew/.pandoc
@@ -42,11 +42,11 @@ PREFIX = /Users/andrew/.pandoc
 # from R with ggsave+Cairo. To disable on-the-fly conversion and supply your
 # own PNGs, uncomment PNG_CONVERT below. The script will still replace
 # references to PDFs with PNGs, but will not convert the PDFs
-# PNG_CONVERT = --no-convert
+PNG_CONVERT = --no-convert
 
 
 # Location of your working bibliography file
-BIB_FILE = /Users/andrew/Dropbox/Readings/Papers.bib
+BIB_FILE = bib/references.bib
 
 # CSL stylesheet (located in the csl folder of the PREFIX directory).
 # Common CSLs:
@@ -65,7 +65,7 @@ CSL = chicago-author-date
 #   * bibstyle-chicago-authordate
 #   * bibstyle-apa
 TEX_REF = bibstyle-chicago-authordate
-TEX_DIR = tex_out
+TEX_DIR = tex-out
 
 # Cross reference options
 CROSSREF = --filter pandoc-crossref -M figPrefix:"Figure" -M eqnPrefix:"Equation" -M tblPrefix:"Table"
