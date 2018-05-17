@@ -28,6 +28,8 @@ library(here)
 When loading the [V-Dem](https://www.v-dem.net/en/) CSV, `readr::read_csv()` chokes on a bunch of rows for whatever reason and gives a ton of warnings, but it still works. Loading the Stata version of V-Dem doesn't create the warnings, but it's slower and it results in the same data. So I just load from CSV and make sure it has the right number of rows and columns in the end. 
 
 ```{r load-vdem, cache=TRUE, warning=FALSE, message=FALSE}
+# Run this to load the cache in an interactive session
+# lazyLoad(file.path(here(), "make_figures_cache", "html", "load-vdem_891e6bac420054832bed978ca9e5f927"))
 # V-Dem data
 vdem_raw <- read_csv(file.path(here(), "data", "Country_Year_V-Dem_Extended_CSV_v8",
                                "V-Dem-CY+Others-v8.csv"))
