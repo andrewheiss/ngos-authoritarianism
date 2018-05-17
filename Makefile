@@ -94,12 +94,6 @@ ERROR_COLOR = \x1b[31;01m
 SRC = $(wildcard $(MS_DIR)/*.$(MEXT))
 BASE = $(basename $(SRC))
 
-ifeq ($(MS_DIR), .)
-	MS_DIR_FOR_TEX = 
-else
-	MS_DIR_FOR_TEX = "$(MS_DIR)/"
-endif
-
 # Targets
 PDF=$(SRC:.md=.pdf)
 HTML=$(SRC:.md=.html)
@@ -169,7 +163,8 @@ bib:	$(BIB)
 		--base-header-level=1 \
 	-o $@
 	@echo "$(WARN_COLOR)...converting TeX to PDF with latexmk (prepare for lots of output)...$(NO_COLOR)"
-	latexmk -outdir=$(MS_DIR_FOR_TEX)$(TEX_DIR) -xelatex -quiet $@
+	latexmk -outdir=$(MS_DIR)/$(TEX_DIR) -xelatex -quiet $@
+	rm $@
 	@echo "$(OK_COLOR)All done!$(NO_COLOR)"
 
 %.odt:	%.md
