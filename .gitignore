@@ -1,10 +1,10 @@
 # Manuscript output
-*.docx
-*.html
-*.pdf
-*.tex
-tex_out/*
-vc*
+manuscript/*.docx
+manuscript/*.html
+manuscript/*.pdf
+manuscript/*.tex
+manuscript/tex-out/*
+manuscript/vc*
 
 # Other folders
 Administration
