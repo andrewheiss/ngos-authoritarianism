@@ -242,7 +242,9 @@ Combined plot for the chapter:
 ```{r ngo-registration-repression-both, fig.height=4, fig.width=9, fig.align="center"}
 blank <- plot_spacer() + theme_void()
 
-fig_combined <- fig_cso_repression + blank + fig_ngo_regulations +
+fig_combined <- (fig_cso_repression + labs(tag = "A")) + 
+  blank + 
+  (fig_ngo_regulations + labs(tag = "B")) +
   plot_layout(widths = c(0.33, 0.02, 0.65))
 
 fig_combined %T>% 
