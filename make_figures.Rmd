@@ -186,12 +186,7 @@ fig_ngo_regulations <- ggplot(dcjw_registration_yearly,
         legend.margin = margin(-4, 0, 0, 0),
         legend.key.size = unit(0.7, "lines"))
 
-fig_ngo_regulations %T>% 
-  print() %T>%
-  ggsave(., filename = file.path(here(), "output", "fig_ngo_regulations.pdf"),
-         width = 4.5, height = 2.5, units = "in", device = cairo_pdf) %>% 
-  ggsave(., filename = file.path(here(), "output", "fig_ngo_regulations.png"),
-         width = 4.5, height = 2.5, units = "in", type = "cairo", dpi = 300)
+fig_ngo_regulations
 ```
 
 Laws on the books don't always reflect lived reality—anti-NGO laws are often applied unevenly and targeted at specific civil society organizations. V-Dem provides a useful measure of civil society repression ("CSO repression" or `v2csreprss_*`) to capture the extent to which governments restrict civil society organizations. This is measured on a 0–4 scale, with 4 representing the most democratic and open civil society (i.e. no repression) and 0 representing the most restricted civil society (i.e. complete repression and liquidation of civil society). I take the mean of V-Dem's Bayesian measurement model (`v2csreprss_mean`) for each country and average it by year and general autocraticness, as before. The 95% confidence intervals for the mean are shaded.
@@ -233,12 +228,7 @@ fig_cso_repression <- ggplot(avg_cso_repression,
         panel.grid.minor.x = element_blank(),
         panel.grid.minor.y = element_blank())
 
-fig_cso_repression %T>% 
-  print() %T>%
-  ggsave(., filename = file.path(here(), "output", "fig_cso_repression.pdf"),
-         width = 4, height = 2.5, units = "in", device = cairo_pdf) %>% 
-  ggsave(., filename = file.path(here(), "output", "fig_cso_repression.png"),
-         width = 4, height = 2.5, units = "in", type = "cairo", dpi = 300)
+fig_cso_repression
 ```
 
 Combined plot for the chapter:
