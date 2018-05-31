@@ -4,6 +4,7 @@ manuscript/*.html
 manuscript/*.pdf
 manuscript/*.tex
 manuscript/tex-out/*
+manuscript/submissions/*
 manuscript/vc*
 
 # Other folders
